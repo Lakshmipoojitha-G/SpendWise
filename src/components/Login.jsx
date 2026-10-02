@@ -3,239 +3,304 @@ import { useState } from "react";
 function Login({ onLogin }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+
     const [error, setError] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
 
-    function performLogin(userToLogin) {
-        const loggedInUser = {
-            id: userToLogin.id || `user-${Date.now()}`,
-            name: userToLogin.name,
-            email: userToLogin.email,
-        };
-
-        const updatedUser = {
-            ...userToLogin,
-            id: loggedInUser.id,
-        };
-
-        localStorage.setItem(
-            "spendwise-user",
-            JSON.stringify(updatedUser)
-        );
-
-        onLogin(loggedInUser);
+    function fillDemoAccount() {
+        setEmail("demo@spendwise.com");
+        setPassword("123456");
+        setError("");
     }
 
     function handleSubmit(event) {
         event.preventDefault();
-        setError("");
 
-        if (email.trim() === "" || password === "") {
-            setError("Please enter both email and password.");
+        if (!email || !password) {
+            setError("Please enter your email and password.");
             return;
         }
-
-        const savedUser = localStorage.getItem("spendwise-user");
-
-        if (!savedUser) {
-            // If user hasn't created or saved yet, check if matching demo or prompt
-            if (
-                email.trim().toLowerCase() === "demo@spendwise.com" &&
-                password === "123456"
-            ) {
-                useDemoAccount(true);
-                return;
-            }
-            setError("No account found. Use the Demo Account button below to test.");
-            return;
-        }
-
-        const user = JSON.parse(savedUser);
 
         if (
-            user.email.toLowerCase() !== email.trim().toLowerCase() ||
-            user.password !== password
+            email !== "demo@spendwise.com" ||
+            password !== "123456"
         ) {
-            setError("Invalid email or password. Please verify your credentials.");
+            setError(
+                "Invalid credentials. Please use the demo account."
+            );
             return;
         }
 
-        performLogin(user);
-    }
-
-    function useDemoAccount(autoLogin = false) {
-        const demoUser = {
+        onLogin({
             id: "demo-user-001",
             name: "SpendWise User",
-            email: "demo@spendwise.com",
-            password: "123456",
-        };
-
-        localStorage.setItem(
-            "spendwise-user",
-            JSON.stringify(demoUser)
-        );
-
-        setEmail(demoUser.email);
-        setPassword(demoUser.password);
-        setError("");
-
-        if (autoLogin) {
-            performLogin(demoUser);
-        }
+            email,
+        });
     }
 
     return (
         <div className="login-page">
-            <div className="login-container">
-                {/* Visual Showcase Left Column */}
-                <div className="login-showcase">
-                    <div className="login-showcase-overlay"></div>
-                    <img
-                        src="/images/login-hero.jpg"
-                        alt="SpendWise Financial Intelligence Platform"
-                        className="login-showcase-image"
-                    />
+            {/* BACKGROUND DECORATION */}
 
-                    <div className="login-showcase-content">
-                        <div className="login-badge">
-                            <span>✦</span> FINANCIAL INTELLIGENCE
+            <div className="login-background">
+                <div className="glow glow-one"></div>
+                <div className="glow glow-two"></div>
+                <div className="glow glow-three"></div>
+
+                <div className="grid-pattern"></div>
+            </div>
+
+            {/* LEFT VISUAL SIDE */}
+
+            <div className="login-visual">
+                <div className="visual-content">
+                    <div className="login-brand">
+                        <div className="brand-mark large">
+                            S
                         </div>
 
-                        <h2>Master your money with clarity & confidence.</h2>
-                        <p>
-                            Track every rupee, visualize spending habits, and build
-                            sustainable wealth with real-time financial analytics.
-                        </p>
+                        <span>
+                            Spend<span>Wise</span>
+                        </span>
+                    </div>
 
-                        <div className="login-features">
-                            <div className="feature-item">
-                                <span className="feature-icon">📊</span>
-                                <div>
-                                    <strong>Instant Categorization</strong>
-                                    <small>Organize food, travel, bills & shopping</small>
-                                </div>
-                            </div>
+                    <span className="eyebrow light">
+                        PERSONAL FINANCE INTELLIGENCE
+                    </span>
 
-                            <div className="feature-item">
-                                <span className="feature-icon">💡</span>
-                                <div>
-                                    <strong>Smart Budget Insights</strong>
-                                    <small>Spot highest expenses & trends immediately</small>
-                                </div>
-                            </div>
+                    <h1>
+                        Your money.
+                        <br />
+                        <span>Your decisions.</span>
+                    </h1>
 
-                            <div className="feature-item">
-                                <span className="feature-icon">🔒</span>
-                                <div>
-                                    <strong>Private & Local</strong>
-                                    <small>Your financial records stay secure on your device</small>
-                                </div>
-                            </div>
+                    <p>
+                        Understand your spending, stay within your
+                        budget and build better financial habits.
+                    </p>
+
+                    {/* FEATURE PILLS */}
+
+                    <div className="feature-pills">
+                        <div>
+                            <span>✓</span>
+                            Track expenses
                         </div>
 
-                        <div className="login-testimonial-pill">
-                            <div className="trust-avatars">
-                                <span>👤</span>
-                                <span>👩</span>
-                                <span>🧑</span>
-                            </div>
-                            <div>
-                                <strong>₹10,00,000+ Tracked</strong>
-                                <small>Join thousands taking charge of their budget</small>
-                            </div>
+                        <div>
+                            <span>✓</span>
+                            Smart insights
+                        </div>
+
+                        <div>
+                            <span>✓</span>
+                            Budget better
                         </div>
                     </div>
                 </div>
 
-                {/* Login Form Right Column */}
-                <div className="login-form-panel">
-                    <div className="login-brand">
-                        <div className="login-logo-box">₹</div>
+                {/* ANIMATED FINANCE VISUAL */}
+
+                <div className="finance-visual">
+                    {/* MAIN CARD */}
+
+                    <div className="money-card">
+                        <div className="money-card-top">
+                            <span>MONTHLY SPENDING</span>
+                            <span>•••</span>
+                        </div>
+
+                        <strong>₹24,580</strong>
+
+                        <div className="mini-chart">
+                            <span style={{ height: "35%" }}></span>
+                            <span style={{ height: "55%" }}></span>
+                            <span style={{ height: "42%" }}></span>
+                            <span style={{ height: "72%" }}></span>
+                            <span style={{ height: "60%" }}></span>
+                            <span style={{ height: "86%" }}></span>
+                            <span style={{ height: "75%" }}></span>
+                            <span style={{ height: "95%" }}></span>
+                        </div>
+
+                        <div className="money-card-bottom">
+                            <span>This month</span>
+                            <strong>+12.4%</strong>
+                        </div>
+                    </div>
+
+                    {/* FLOATING BALANCE CARD */}
+
+                    <div className="floating-finance-card balance-card">
+                        <div className="floating-icon">₹</div>
+
                         <div>
-                            <span className="brand-title">SpendWise</span>
-                            <span className="brand-tag">Personal Wealth & Budget</span>
+                            <small>Available</small>
+                            <strong>₹18,420</strong>
                         </div>
                     </div>
 
-                    <div className="login-header-text">
-                        <h1>Welcome Back</h1>
-                        <p>Sign in to your account or jump in using the test account.</p>
-                    </div>
+                    {/* FLOATING BUDGET CARD */}
 
-                    {/* Quick Demo Access Bar */}
-                    <div className="quick-demo-card">
-                        <div className="demo-info">
-                            <span className="demo-chip">DEMO READY</span>
-                            <strong>Try SpendWise Instantly</strong>
-                            <p>No registration needed. Explore dashboard with test expenses.</p>
+                    <div className="floating-finance-card budget-floating">
+                        <div className="budget-circle">
+                            <span>72%</span>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => useDemoAccount(true)}
-                            className="quick-demo-button"
-                        >
-                            ⚡ 1-Click Demo Login
-                        </button>
+
+                        <div>
+                            <small>Budget used</small>
+                            <strong>On track</strong>
+                        </div>
                     </div>
 
-                    <div className="login-divider">
-                        <span>OR SIGN IN WITH CREDENTIALS</span>
+                    {/* FLOATING COINS */}
+
+                    <div className="coin coin-one">₹</div>
+                    <div className="coin coin-two">₹</div>
+                    <div className="coin coin-three">₹</div>
+                </div>
+            </div>
+
+            {/* LOGIN SIDE */}
+
+            <div className="login-panel">
+                <div className="login-box">
+                    <div className="mobile-login-brand">
+                        <div className="brand-mark">
+                            S
+                        </div>
+
+                        <span>
+                            Spend<span>Wise</span>
+                        </span>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="login-form">
+                    <div className="login-heading">
+                        <span className="eyebrow">
+                            WELCOME BACK
+                        </span>
+
+                        <h2>
+                            Let's make your
+                            <br />
+                            money work smarter.
+                        </h2>
+
+                        <p>
+                            Sign in to continue to your financial
+                            dashboard.
+                        </p>
+                    </div>
+
+                    <form onSubmit={handleSubmit}>
+                        <div className="login-field">
+                            <label>Email address</label>
+
+                            <div className="input-wrapper">
+                                <span>✉</span>
+
+                                <input
+                                    type="email"
+                                    placeholder="you@example.com"
+                                    value={email}
+                                    onChange={(event) =>
+                                        setEmail(event.target.value)
+                                    }
+                                />
+                            </div>
+                        </div>
+
+                        <div className="login-field">
+                            <label>Password</label>
+
+                            <div className="input-wrapper">
+                                <span>⌑</span>
+
+                                <input
+                                    type={
+                                        showPassword
+                                            ? "text"
+                                            : "password"
+                                    }
+                                    placeholder="Enter your password"
+                                    value={password}
+                                    onChange={(event) =>
+                                        setPassword(event.target.value)
+                                    }
+                                />
+
+                                <button
+                                    type="button"
+                                    className="password-toggle"
+                                    onClick={() =>
+                                        setShowPassword(!showPassword)
+                                    }
+                                >
+                                    {showPassword ? "Hide" : "Show"}
+                                </button>
+                            </div>
+                        </div>
+
                         {error && (
-                            <div className="login-error-alert" role="alert">
-                                <span>⚠️</span>
-                                <p>{error}</p>
+                            <div className="login-error">
+                                <span>!</span>
+                                {error}
                             </div>
                         )}
 
-                        <div className="form-group">
-                            <label htmlFor="login-email">Email Address</label>
-                            <div className="input-with-icon">
-                                <span className="input-icon">✉</span>
-                                <input
-                                    id="login-email"
-                                    type="email"
-                                    placeholder="demo@spendwise.com"
-                                    value={email}
-                                    onChange={(event) => setEmail(event.target.value)}
-                                    autoComplete="email"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="form-group">
-                            <label htmlFor="login-password">Password</label>
-                            <div className="input-with-icon">
-                                <span className="input-icon">🔒</span>
-                                <input
-                                    id="login-password"
-                                    type="password"
-                                    placeholder="••••••"
-                                    value={password}
-                                    onChange={(event) => setPassword(event.target.value)}
-                                    autoComplete="current-password"
-                                />
-                            </div>
-                        </div>
-
-                        <button type="submit" className="login-submit-button">
-                            Sign In to SpendWise →
+                        <button
+                            type="submit"
+                            className="login-submit"
+                        >
+                            <span>Sign in to SpendWise</span>
+                            <span>→</span>
                         </button>
                     </form>
 
-                    <div className="login-footer-hint">
-                        <span>Demo credentials: </span>
-                        <code>demo@spendwise.com</code> / <code>123456</code>
+                    {/* DEMO LOGIN */}
+
+                    <div className="demo-section">
+                        <div className="demo-divider">
+                            <span>OR</span>
+                        </div>
+
                         <button
                             type="button"
-                            onClick={() => useDemoAccount(false)}
-                            className="fill-creds-btn"
+                            className="demo-button"
+                            onClick={fillDemoAccount}
                         >
-                            (Fill Inputs)
+                            <span className="demo-button-icon">
+                                ✦
+                            </span>
+
+                            <span>
+                                <strong>Use Demo Account</strong>
+                                <small>
+                                    Fill demo credentials automatically
+                                </small>
+                            </span>
+
+                            <span className="demo-arrow">
+                                →
+                            </span>
                         </button>
                     </div>
+
+                    <div className="demo-details">
+                        <span>Demo credentials</span>
+
+                        <div>
+                            <code>
+                                demo@spendwise.com
+                            </code>
+
+                            <code>123456</code>
+                        </div>
+                    </div>
+
+                    <p className="login-footer">
+                        SpendWise · Personal Finance Dashboard
+                    </p>
                 </div>
             </div>
         </div>

@@ -3,31 +3,26 @@ function SummaryCard({
     value,
     description,
     icon,
+    iconClass = "",
 }) {
     return (
-        <div className="summary-card">
-
+        <article className="summary-card">
             <div className="summary-top">
-                <div className="summary-icon">
+                <div className={`summary-icon ${iconClass}`}>
                     {icon}
                 </div>
 
-                <span className="summary-dot"></span>
+                <span className="summary-title">
+                    {title}
+                </span>
             </div>
 
-            <p className="summary-title">
-                {title}
-            </p>
-
-            <h2 className="summary-value">
+            <strong className="summary-value">
                 {value}
-            </h2>
+            </strong>
 
-            <p className="summary-description">
-                {description}
-            </p>
-
-        </div>
+            <p>{description}</p>
+        </article>
     );
 }
 

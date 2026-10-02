@@ -1,169 +1,97 @@
-function CategoryAnalytics({
-    categoryTotals,
-}) {
-    const categories =
-        Object.entries(categoryTotals);
+import { useMemo } from "react";
 
-    const totalSpending =
-        categories.reduce(
-            (total, [, amount]) =>
-                total + amount,
-            0
+const ICONS = {
+    Food: "🍔",
+    Transportation: "🚗",
+    Shopping: "🛍️",
+    Bills: "💡",
+    Entertainment: "🎬",
+    Health: "❤️",
+    Other: "📦",
+};
+
+function CategoryAnalytics({ categoryTotals }) {
+    const categories = useMemo(() => {
+        return Object.entries(categoryTotals).sort(
+            (a, b) => b[1] - a[1]
         );
+    }, [categoryTotals]);
 
-
-    const categoryIcons = {
-        Food: "🍔",
-        Transportation: "🚗",
-        Shopping: "🛍️",
-        Bills: "💡",
-        Entertainment: "🎬",
-        Health: "❤️",
-        Other: "📦",
-    };
-
+    const total = categories.reduce(
+        (sum, [, amount]) => sum + amount,
+        0
+    );
 
     return (
-        <section
-            className="analytics-section"
-            id="analytics"
-        >
-
-            <div className="analytics-heading">
-
+        <section className="analytics-section" id="analytics">
+            <div className="section-heading">
                 <div>
+                    <span className="eyebrow">ANALYTICS</span>
 
-                    <span className="section-eyebrow">
-                        BREAKDOWN
-                    </span>
-
-                    <h2>
-                        Spending by Category
-                    </h2>
+                    <h2>Spending by Category</h2>
 
                     <p>
-                        See where most of your
-                        money is going.
+                        Understand where most of your money is going.
                     </p>
-
                 </div>
-
 
                 <div className="analytics-total">
-
-                    <span>
-                        Total
-                    </span>
-
+                    Total
                     <strong>
-                        ₹
-                        {totalSpending.toLocaleString()}
+                        ₹{total.toLocaleString("en-IN")}
                     </strong>
-
                 </div>
-
             </div>
 
+            {!categories.length ? (
+                <div className="empty-state">
+                    <div className="empty-icon">◌</div>
 
-            <div className="category-list">
+                    <h3>No analytics yet</h3>
 
-                {categories.length === 0 ? (
+                    <p>
+                        Add some expenses to see your spending
+                        breakdown.
+                    </p>
+                </div>
+            ) : (
+                <div className="category-list">
+                    {categories.map(([category, amount]) => {
+                        const percentage =
+                            total > 0 ? (amount / total) * 100 : 0;
 
-                    <div className="empty-analytics">
-
-                        <div className="empty-analytics-icon">
-                            ₹
-                        </div>
-
-                        <p>
-                            No spending data
-                            available.
-                        </p>
-
-                    </div>
-
-                ) : (
-
-                    categories.map(
-                        ([category, amount]) => {
-
-                            const percentage =
-                                totalSpending > 0
-                                    ? (amount /
-                                        totalSpending) *
-                                    100
-                                    : 0;
-
-                            return (
-                                <div
-                                    className="category-card"
-                                    key={category}
-                                >
-
-                                    <div className="category-header">
-
-                                        <div className="category-title">
-
-                                            <div
-                                                className="category-icon"
-                                                aria-hidden="true"
-                                            >
-                                                {categoryIcons[
-                                                    category
-                                                ] || "📦"}
-                                            </div>
-
-                                            <div>
-
-                                                <p className="category-name">
-                                                    {category}
-                                                </p>
-
-                                                <h3>
-                                                    ₹
-                                                    {amount.toLocaleString()}
-                                                </h3>
-
-                                            </div>
-
-                                        </div>
-
-
-                                        <strong className="category-percentage">
-                                            {percentage.toFixed(
-                                                1
-                                            )}
-                                            %
-                                        </strong>
-
+                        return (
+                            <div className="category-card" key={category}>
+                                <div className="category-info">
+                                    <div className="category-icon">
+                                        {ICONS[category] || "📦"}
                                     </div>
 
+                                    <div>
+                                        <strong>{category}</strong>
 
-                                    <div
-                                        className="progress-bar"
-                                        aria-label={`${category} represents ${percentage.toFixed(
-                                            1
-                                        )}% of total spending`}
-                                    >
-
-                                        <div
-                                            className="progress-fill"
-                                            style={{
-                                                width: `${percentage}%`,
-                                            }}
-                                        ></div>
-
+                                        <span>
+                                            ₹{amount.toLocaleString("en-IN")}
+                                        </span>
                                     </div>
-
                                 </div>
-                            );
-                        }
-                    )
 
-                )}
+                                <strong className="percentage">
+                                    {percentage.toFixed(1)}%
+                                </strong>
 
-            </div>
-
+                                <div className="progress">
+                                    <div
+                                        style={{
+                                            width: `${percentage}%`,
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
         </section>
     );
 }

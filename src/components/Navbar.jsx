@@ -1,152 +1,227 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function Navbar({
     user,
+    onDashboard,
+    onTransactions,
+    onAnalytics,
     onProfile,
     onLogoutRequest,
 }) {
-    const [showProfile, setShowProfile] = useState(false);
+    const [open, setOpen] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
 
-    const userName = user?.name || "User";
-    const userEmail = user?.email || "user@spendwise.com";
+    const dropdownRef = useRef(null);
 
-    const initials = userName
-        .split(" ")
-        .filter(Boolean)
-        .map((word) => word[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase() || "SW";
+    useEffect(() => {
+        function handleOutsideClick(event) {
+            if (
+                dropdownRef.current &&
+                !dropdownRef.current.contains(event.target)
+            ) {
+                setOpen(false);
+            }
+        }
 
-    function openProfile() {
-        setShowProfile(false);
-        onProfile();
+        document.addEventListener("mousedown", handleOutsideClick);
+
+        return () => {
+            document.removeEventListener(
+                "mousedown",
+                handleOutsideClick
+            );
+        };
+    }, []);
+
+    function handleDashboard() {
+        setMobileOpen(false);
+        setOpen(false);
+
+        onDashboard();
+
+        // Always return to the very top
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth",
+        });
     }
 
-    function requestLogout() {
-        setShowProfile(false);
-        onLogoutRequest();
+    function handleTransactions() {
+        setMobileOpen(false);
+        setOpen(false);
+
+        onTransactions();
+
+        setTimeout(() => {
+            document
+                .getElementById("transactions")
+                ?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                });
+        }, 100);
+    }
+
+    function handleAnalytics() {
+        setMobileOpen(false);
+        setOpen(false);
+
+        onAnalytics();
+
+        setTimeout(() => {
+            document
+                .getElementById("analytics")
+                ?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                });
+        }, 100);
     }
 
     return (
         <nav className="navbar">
-            <div className="navbar-inner">
+            {/* BRAND */}
 
-                <a
-                    href="#dashboard"
-                    className="logo-area"
-                    onClick={() => onProfile(false)}
+            <button
+                className="navbar-brand"
+                onClick={handleDashboard}
+            >
+                <span className="brand-mark">S</span>
+
+                <span className="brand-name">
+                    Spend<span>Wise</span>
+                </span>
+            </button>
+
+            {/* DESKTOP NAVIGATION */}
+
+            <div className="nav-links">
+                <button
+                    className="nav-link-button"
+                    onClick={handleDashboard}
                 >
-                    <div className="logo-icon">₹</div>
+                    Dashboard
+                </button>
 
-                    <div className="logo-text">
-                        <div className="logo">
-                            SpendWise
-                        </div>
+                <button
+                    className="nav-link-button"
+                    onClick={handleTransactions}
+                >
+                    Transactions
+                </button>
 
-                        <span className="logo-subtitle">
-                            Personal Finance
-                        </span>
-                    </div>
-                </a>
+                <button
+                    className="nav-link-button"
+                    onClick={handleAnalytics}
+                >
+                    Analytics
+                </button>
+            </div>
 
-                <div className="nav-links">
+            {/* RIGHT SIDE */}
 
-                    <a
-                        href="#dashboard"
-                        className="nav-link active-link"
-                        onClick={() => onProfile(false)}
-                    >
-                        <span>⌂</span>
-                        Dashboard
-                    </a>
-
-                    <a
-                        href="#transactions"
-                        className="nav-link"
-                        onClick={() => onProfile(false)}
-                    >
-                        <span>▤</span>
-                        Transactions
-                    </a>
-
-                    <a
-                        href="#analytics"
-                        className="nav-link"
-                        onClick={() => onProfile(false)}
-                    >
-                        <span>◈</span>
-                        Analytics
-                    </a>
-
-                </div>
-
-                <div className="profile-container">
-
+            <div className="navbar-right">
+                <div
+                    className="profile-menu"
+                    ref={dropdownRef}
+                >
                     <button
                         className="profile-button"
-                        onClick={() =>
-                            setShowProfile(!showProfile)
-                        }
+                        onClick={() => setOpen(!open)}
                     >
-                        <div className="profile-avatar">
-                            {initials}
-                        </div>
+                        <span className="avatar">
+                            {user.name.charAt(0).toUpperCase()}
+                        </span>
 
-                        <div className="profile-name">
-                            {userName}
-                        </div>
+                        <span className="profile-name">
+                            {user.name}
+                        </span>
 
-                        <span className="profile-arrow">
-                            {showProfile ? "▲" : "▼"}
+                        <span
+                            className={`profile-arrow ${open ? "rotate" : ""
+                                }`}
+                        >
+                            ↓
                         </span>
                     </button>
 
-                    {showProfile && (
+                    {open && (
                         <div className="profile-dropdown">
-
-                            <div className="profile-header">
-
-                                <div className="profile-avatar large">
-                                    {initials}
+                            <div className="dropdown-user">
+                                <div className="dropdown-avatar">
+                                    {user.name.charAt(0).toUpperCase()}
                                 </div>
 
                                 <div>
-                                    <strong>
-                                        {userName}
-                                    </strong>
-
-                                    <span>
-                                        {userEmail}
-                                    </span>
+                                    <strong>{user.name}</strong>
+                                    <small>{user.email}</small>
                                 </div>
-
                             </div>
 
-                            <div className="profile-divider"></div>
-
                             <button
-                                className="dropdown-action"
-                                onClick={openProfile}
+                                onClick={() => {
+                                    setOpen(false);
+                                    onProfile();
+                                }}
                             >
-                                <span>👤</span>
+                                <span>◉</span>
                                 My Profile
                             </button>
 
                             <button
-                                className="logout-button"
-                                onClick={requestLogout}
+                                className="dropdown-danger"
+                                onClick={() => {
+                                    setOpen(false);
+                                    onLogoutRequest();
+                                }}
                             >
-                                <span>↪</span>
+                                <span>↗</span>
                                 Logout
                             </button>
-
                         </div>
                     )}
-
                 </div>
 
+                {/* MOBILE BUTTON */}
+
+                <button
+                    className="mobile-menu-button"
+                    onClick={() => setMobileOpen(!mobileOpen)}
+                >
+                    {mobileOpen ? "×" : "☰"}
+                </button>
             </div>
+
+            {/* MOBILE MENU */}
+
+            {mobileOpen && (
+                <div className="mobile-nav">
+                    <button onClick={handleDashboard}>
+                        <span>⌂</span>
+                        Dashboard
+                    </button>
+
+                    <button onClick={handleTransactions}>
+                        <span>≡</span>
+                        Transactions
+                    </button>
+
+                    <button onClick={handleAnalytics}>
+                        <span>◌</span>
+                        Analytics
+                    </button>
+
+                    <button
+                        onClick={() => {
+                            setMobileOpen(false);
+                            onProfile();
+                        }}
+                    >
+                        <span>◉</span>
+                        My Profile
+                    </button>
+                </div>
+            )}
         </nav>
     );
 }

@@ -1,145 +1,91 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import "./App.css";
 
-import Navbar from "./components/Navbar";
 import Login from "./components/Login";
+import Navbar from "./components/Navbar";
 import Profile from "./components/Profile";
 import SummaryCard from "./components/SummaryCard";
 import ExpenseList from "./components/ExpenseList";
 import CategoryAnalytics from "./components/CategoryAnalytics";
 
-import "./App.css";
-
-const SESSION_TIMEOUT = 30 * 60 * 1000;
-
-const sampleExpenses = [
-  {
-    id: 1,
-    description: "Lunch",
-    category: "Food",
-    amount: 450,
-    date: "30 Sep 2026",
-  },
-  {
-    id: 2,
-    description: "Uber Ride",
-    category: "Transportation",
-    amount: 280,
-    date: "29 Sep 2026",
-  },
-  {
-    id: 3,
-    description: "New Shirt",
-    category: "Shopping",
-    amount: 1200,
-    date: "28 Sep 2026",
-  },
-  {
-    id: 4,
-    description: "Electricity Bill",
-    category: "Bills",
-    amount: 1800,
-    date: "27 Sep 2026",
-  },
+const CATEGORIES = [
+  "Food",
+  "Transportation",
+  "Shopping",
+  "Bills",
+  "Entertainment",
+  "Health",
+  "Other",
 ];
+
+const CATEGORY_ICONS = {
+  Food: "🍔",
+  Transportation: "🚗",
+  Shopping: "🛍️",
+  Bills: "💡",
+  Entertainment: "🎬",
+  Health: "❤️",
+  Other: "📦",
+};
+
+const emptyExpense = {
+  description: "",
+  category: "Food",
+  amount: "",
+  date: new Date().toISOString().split("T")[0],
+};
 
 function getExpenseKey(user) {
   return `spendwise-expenses-${user.id}`;
 }
 
-function getExpensesForUser(user) {
-  const savedExpenses =
-    localStorage.getItem(
-      getExpenseKey(user)
-    );
-
-  if (savedExpenses) {
-    return JSON.parse(savedExpenses);
-  }
-
-  return sampleExpenses;
+function getBudgetKey(user) {
+  return `spendwise-budget-${user.id}`;
 }
 
 function App() {
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem("spendwise-user");
+    return saved ? JSON.parse(saved) : null;
+  });
 
-  // =========================================
-  // CURRENT USER
-  // =========================================
+  const [currentPage, setCurrentPage] = useState("dashboard");
+  const [expenses, setExpenses] = useState([]);
+  const [budget, setBudget] = useState(0);
 
-  const [currentUser, setCurrentUser] =
-    useState(() => {
-      const savedUser =
-        localStorage.getItem(
-          "spendwise-current-user"
-        );
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [sortBy, setSortBy] = useState("latest");
 
-      if (!savedUser) {
-        return null;
-      }
+  const [showExpenseDrawer, setShowExpenseDrawer] = useState(false);
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-      const user = JSON.parse(savedUser);
+  const [expenseForm, setExpenseForm] = useState(emptyExpense);
+  const [budgetInput, setBudgetInput] = useState("");
 
-      // Old sessions without lastActivity
-      if (!user.lastActivity) {
-        return null;
-      }
+  const [toast, setToast] = useState("");
+  const [profileUser, setProfileUser] = useState(null);
 
-      const sessionAge =
-        Date.now() - user.lastActivity;
-
-      if (sessionAge >= SESSION_TIMEOUT) {
-        localStorage.removeItem(
-          "spendwise-current-user"
-        );
-
-        return null;
-      }
-
-      return user;
-    });
-
-  // =========================================
-  // PAGE
-  // =========================================
-
-  const [currentPage, setCurrentPage] =
-    useState("dashboard");
-
-  // =========================================
-  // LOGOUT CONFIRMATION
-  // =========================================
-
-  const [showLogoutConfirmation, setShowLogoutConfirmation] =
-    useState(false);
-
-  // =========================================
-  // EXPENSES
-  // =========================================
-
-  const [expenses, setExpenses] =
-    useState(() => {
-
-      const savedUser =
-        localStorage.getItem(
-          "spendwise-current-user"
-        );
-
-      if (!savedUser) {
-        return [];
-      }
-
-      const user = JSON.parse(savedUser);
-
-      return getExpensesForUser(user);
-    });
-
-  // =========================================
-  // SAVE EXPENSES
-  // =========================================
+  /* ---------------- LOGIN DATA ---------------- */
 
   useEffect(() => {
-    if (!currentUser) {
-      return;
-    }
+    if (!currentUser) return;
+
+    const savedExpenses = localStorage.getItem(getExpenseKey(currentUser));
+    const savedBudget = localStorage.getItem(getBudgetKey(currentUser));
+
+    setExpenses(savedExpenses ? JSON.parse(savedExpenses) : []);
+    setBudget(savedBudget ? Number(savedBudget) : 0);
+    setBudgetInput(savedBudget || "");
+
+    setProfileUser(currentUser);
+  }, [currentUser]);
+
+  /* ---------------- SAVE EXPENSES ---------------- */
+
+  useEffect(() => {
+    if (!currentUser) return;
 
     localStorage.setItem(
       getExpenseKey(currentUser),
@@ -147,959 +93,698 @@ function App() {
     );
   }, [expenses, currentUser]);
 
-  // =========================================
-  // LOGIN
-  // =========================================
-
-  function handleLogin(user) {
-    const sessionUser = {
-      ...user,
-      lastActivity: Date.now(),
-    };
-
-    setCurrentUser(sessionUser);
-
-    localStorage.setItem(
-      "spendwise-current-user",
-      JSON.stringify(sessionUser)
-    );
-
-    setExpenses(
-      getExpensesForUser(sessionUser)
-    );
-
-    setCurrentPage("dashboard");
-  }
-
-  // =========================================
-  // SESSION ACTIVITY
-  // =========================================
+  /* ---------------- TOAST ---------------- */
 
   useEffect(() => {
-    if (!currentUser) {
-      return;
-    }
+    if (!toast) return;
 
-    let activityTimeout;
+    const timer = setTimeout(() => {
+      setToast("");
+    }, 2500);
 
-    function updateActivity() {
-      clearTimeout(activityTimeout);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
-      activityTimeout = setTimeout(() => {
+  /* ---------------- CALCULATIONS ---------------- */
 
-        const updatedUser = {
-          ...currentUser,
-          lastActivity: Date.now(),
-        };
+  const totalSpent = useMemo(() => {
+    return expenses.reduce(
+      (total, expense) => total + Number(expense.amount),
+      0
+    );
+  }, [expenses]);
 
-        setCurrentUser(updatedUser);
+  const remainingBudget = Math.max(budget - totalSpent, 0);
 
-        localStorage.setItem(
-          "spendwise-current-user",
-          JSON.stringify(updatedUser)
-        );
+  const budgetPercentage =
+    budget > 0 ? Math.min((totalSpent / budget) * 100, 100) : 0;
 
-      }, 1000);
-    }
+  const categoryTotals = useMemo(() => {
+    const totals = {};
 
-    const events = [
-      "click",
-      "keydown",
-      "mousemove",
-      "scroll",
-      "touchstart",
-    ];
+    expenses.forEach((expense) => {
+      if (!totals[expense.category]) {
+        totals[expense.category] = 0;
+      }
 
-    events.forEach((event) => {
-      window.addEventListener(
-        event,
-        updateActivity
-      );
+      totals[expense.category] += Number(expense.amount);
     });
 
-    return () => {
-      clearTimeout(activityTimeout);
+    return totals;
+  }, [expenses]);
 
-      events.forEach((event) => {
-        window.removeEventListener(
-          event,
-          updateActivity
-        );
-      });
-    };
-  }, [currentUser]);
+  const highestCategory = useMemo(() => {
+    const entries = Object.entries(categoryTotals);
 
-  // =========================================
-  // SESSION EXPIRATION CHECK
-  // =========================================
+    if (!entries.length) return null;
 
-  useEffect(() => {
-    if (!currentUser) {
-      return;
+    return entries.sort((a, b) => b[1] - a[1])[0];
+  }, [categoryTotals]);
+
+  /* ---------------- FILTER ---------------- */
+
+  const filteredExpenses = useMemo(() => {
+    let result = [...expenses];
+
+    if (search.trim()) {
+      const query = search.toLowerCase();
+
+      result = result.filter(
+        (expense) =>
+          expense.description.toLowerCase().includes(query) ||
+          expense.category.toLowerCase().includes(query)
+      );
     }
 
-    const interval = setInterval(() => {
+    if (categoryFilter !== "All") {
+      result = result.filter(
+        (expense) => expense.category === categoryFilter
+      );
+    }
 
-      const savedUser =
-        localStorage.getItem(
-          "spendwise-current-user"
-        );
+    if (sortBy === "latest") {
+      result.sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
 
-      if (!savedUser) {
-        return;
-      }
+    if (sortBy === "oldest") {
+      result.sort((a, b) => new Date(a.date) - new Date(b.date));
+    }
 
-      const user = JSON.parse(savedUser);
+    if (sortBy === "highest") {
+      result.sort((a, b) => Number(b.amount) - Number(a.amount));
+    }
 
-      const inactiveTime =
-        Date.now() -
-        user.lastActivity;
+    if (sortBy === "lowest") {
+      result.sort((a, b) => Number(a.amount) - Number(b.amount));
+    }
 
-      if (
-        inactiveTime >=
-        SESSION_TIMEOUT
-      ) {
-        setCurrentUser(null);
-        setExpenses([]);
-        setCurrentPage("dashboard");
+    return result;
+  }, [expenses, search, categoryFilter, sortBy]);
 
-        localStorage.removeItem(
-          "spendwise-current-user"
-        );
+  /* ---------------- LOGIN ---------------- */
 
-        alert(
-          "Your session has expired due to inactivity."
-        );
-      }
+  function handleLogin(user) {
+    setCurrentUser(user);
+    localStorage.setItem("spendwise-user", JSON.stringify(user));
+    setCurrentPage("dashboard");
+    setToast("Welcome to SpendWise!");
+  }
 
-    }, 60 * 1000);
-
-    return () =>
-      clearInterval(interval);
-
-  }, [currentUser]);
-
-  // =========================================
-  // LOGOUT
-  // =========================================
+  /* ---------------- LOGOUT ---------------- */
 
   function handleLogoutRequest() {
-    setShowLogoutConfirmation(true);
+    setShowLogoutModal(true);
   }
 
   function handleLogout() {
+    localStorage.removeItem("spendwise-user");
+
     setCurrentUser(null);
     setExpenses([]);
+    setBudget(0);
+    setShowLogoutModal(false);
     setCurrentPage("dashboard");
-    setShowLogoutConfirmation(false);
-
-    localStorage.removeItem(
-      "spendwise-current-user"
-    );
   }
 
-  // =========================================
-  // PROFILE UPDATE
-  // =========================================
+  /* ---------------- PROFILE ---------------- */
 
-  function handleProfileUpdate(updatedUser) {
-
-    const userWithSession = {
-      ...updatedUser,
-      lastActivity: Date.now(),
-    };
-
-    setCurrentUser(userWithSession);
+  function handleProfileSave(updatedUser) {
+    setCurrentUser(updatedUser);
+    setProfileUser(updatedUser);
 
     localStorage.setItem(
-      "spendwise-current-user",
-      JSON.stringify(userWithSession)
+      "spendwise-user",
+      JSON.stringify(updatedUser)
     );
 
-    const savedAccount =
-      localStorage.getItem(
-        "spendwise-user"
-      );
-
-    if (savedAccount) {
-      const account =
-        JSON.parse(savedAccount);
-
-      localStorage.setItem(
-        "spendwise-user",
-        JSON.stringify({
-          ...account,
-          name: updatedUser.name,
-          email: updatedUser.email,
-          id:
-            account.id ||
-            updatedUser.id,
-        })
-      );
-    }
+    setToast("Profile updated successfully!");
   }
 
-  // =========================================
-  // FORM STATE
-  // =========================================
+  /* ---------------- EXPENSE ---------------- */
 
-  const [showForm, setShowForm] =
-    useState(false);
+  function openExpenseDrawer() {
+    setExpenseForm({
+      ...emptyExpense,
+      date: new Date().toISOString().split("T")[0],
+    });
 
-  const [description, setDescription] =
-    useState("");
-
-  const [category, setCategory] =
-    useState("");
-
-  const [amount, setAmount] =
-    useState("");
-
-  const [date, setDate] =
-    useState("");
-
-  const [error, setError] =
-    useState("");
-
-  // =========================================
-  // SEARCH / FILTER
-  // =========================================
-
-  const [searchTerm, setSearchTerm] =
-    useState("");
-
-  const [selectedCategory, setSelectedCategory] =
-    useState("All");
-
-  // =========================================
-  // CALCULATIONS
-  // =========================================
-
-  const totalSpent =
-    expenses.reduce(
-      (total, expense) =>
-        total + expense.amount,
-      0
-    );
-
-  const transactionCount =
-    expenses.length;
-
-  const averageExpense =
-    transactionCount > 0
-      ? totalSpent /
-      transactionCount
-      : 0;
-
-  const highestExpense =
-    transactionCount > 0
-      ? Math.max(
-        ...expenses.map(
-          (expense) =>
-            expense.amount
-        )
-      )
-      : 0;
-
-  // =========================================
-  // DELETE
-  // =========================================
-
-  function handleDeleteExpense(id) {
-    setExpenses(
-      (previousExpenses) =>
-        previousExpenses.filter(
-          (expense) =>
-            expense.id !== id
-        )
-    );
+    setShowExpenseDrawer(true);
   }
 
-  // =========================================
-  // UPDATE
-  // =========================================
-
-  function handleUpdateExpense(
-    updatedExpense
-  ) {
-    setExpenses(
-      (previousExpenses) =>
-        previousExpenses.map(
-          (expense) =>
-            expense.id ===
-              updatedExpense.id
-              ? updatedExpense
-              : expense
-        )
-    );
+  function closeExpenseDrawer() {
+    setShowExpenseDrawer(false);
   }
 
-  // =========================================
-  // SEARCH + FILTER
-  // =========================================
+  function handleExpenseChange(event) {
+    const { name, value } = event.target;
 
-  const filteredExpenses =
-    expenses.filter(
-      (expense) => {
+    setExpenseForm((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  }
 
-        const matchesSearch =
-          expense.description
-            .toLowerCase()
-            .includes(
-              searchTerm.toLowerCase()
-            );
-
-        const matchesCategory =
-          selectedCategory ===
-          "All" ||
-          expense.category ===
-          selectedCategory;
-
-        return (
-          matchesSearch &&
-          matchesCategory
-        );
-      }
-    );
-
-  // =========================================
-  // CATEGORY TOTALS
-  // =========================================
-
-  const categoryTotals =
-    expenses.reduce(
-      (totals, expense) => {
-
-        if (
-          totals[
-          expense.category
-          ]
-        ) {
-          totals[
-            expense.category
-          ] += expense.amount;
-        } else {
-          totals[
-            expense.category
-          ] = expense.amount;
-        }
-
-        return totals;
-
-      },
-      {}
-    );
-
-  const highestCategory =
-    Object.entries(
-      categoryTotals
-    ).reduce(
-      (highest, current) => {
-
-        if (
-          current[1] >
-          highest[1]
-        ) {
-          return current;
-        }
-
-        return highest;
-      },
-      ["None", 0]
-    );
-
-  const highestCategoryName =
-    highestCategory[0];
-
-  const highestCategoryAmount =
-    highestCategory[1];
-
-  // =========================================
-  // ADD EXPENSE
-  // =========================================
-
-  function handleSubmit(event) {
+  function addExpense(event) {
     event.preventDefault();
 
     if (
-      description.trim() === "" ||
-      category === "" ||
-      amount === "" ||
-      date === ""
+      !expenseForm.description.trim() ||
+      !expenseForm.category ||
+      !expenseForm.amount ||
+      !expenseForm.date
     ) {
-      setError(
-        "Please fill in all fields."
-      );
-
+      setToast("Please complete all fields.");
       return;
     }
 
-    if (Number(amount) <= 0) {
-      setError(
-        "Amount must be greater than 0."
-      );
-
+    if (Number(expenseForm.amount) <= 0) {
+      setToast("Amount must be greater than ₹0.");
       return;
     }
 
     const newExpense = {
       id: Date.now(),
-      description:
-        description.trim(),
-      category,
-      amount: Number(amount),
-      date,
+      description: expenseForm.description.trim(),
+      category: expenseForm.category,
+      amount: Number(expenseForm.amount),
+      date: expenseForm.date,
     };
 
-    setExpenses(
-      (previousExpenses) => [
-        newExpense,
-        ...previousExpenses,
-      ]
-    );
+    setExpenses((previous) => [newExpense, ...previous]);
 
-    setDescription("");
-    setCategory("");
-    setAmount("");
-    setDate("");
-    setError("");
-    setShowForm(false);
+    setShowExpenseDrawer(false);
+    setExpenseForm(emptyExpense);
+
+    setToast("Expense added successfully!");
   }
 
-  // =========================================
-  // PROTECTED DASHBOARD
-  // =========================================
+  function deleteExpense(id) {
+    setExpenses((previous) =>
+      previous.filter((expense) => expense.id !== id)
+    );
+
+    setToast("Expense deleted.");
+  }
+
+  function updateExpense(updatedExpense) {
+    setExpenses((previous) =>
+      previous.map((expense) =>
+        expense.id === updatedExpense.id
+          ? updatedExpense
+          : expense
+      )
+    );
+
+    setToast("Expense updated successfully!");
+  }
+
+  /* ---------------- BUDGET ---------------- */
+
+  function saveBudget(event) {
+    event.preventDefault();
+
+    const amount = Number(budgetInput);
+
+    if (!amount || amount <= 0) {
+      setToast("Please enter a valid budget.");
+      return;
+    }
+
+    setBudget(amount);
+
+    localStorage.setItem(
+      getBudgetKey(currentUser),
+      String(amount)
+    );
+
+    setShowBudgetModal(false);
+    setToast("Monthly budget updated!");
+  }
+
+  /* ---------------- INSIGHT ---------------- */
+
+  function getInsight() {
+    if (!expenses.length) {
+      return "Start by adding your first expense. SpendWise will automatically analyze your spending.";
+    }
+
+    if (budget > 0 && totalSpent > budget) {
+      return `You are ₹${(
+        totalSpent - budget
+      ).toLocaleString("en-IN")} over your monthly budget. Consider reviewing your largest spending categories.`;
+    }
+
+    if (highestCategory) {
+      return `${highestCategory[0]} is currently your largest spending category at ₹${highestCategory[1].toLocaleString(
+        "en-IN"
+      )}.`;
+    }
+
+    return "Your spending is being tracked successfully.";
+  }
+
+  /* ---------------- LOGIN SCREEN ---------------- */
 
   if (!currentUser) {
+    return <Login onLogin={handleLogin} />;
+  }
+
+  /* ---------------- PROFILE PAGE ---------------- */
+
+  if (currentPage === "profile") {
     return (
-      <Login
-        onLogin={handleLogin}
+      <Profile
+        user={profileUser || currentUser}
+        onSave={handleProfileSave}
+        onLogout={handleLogout}
+        onBack={() => setCurrentPage("dashboard")}
       />
     );
   }
 
-  // =========================================
-  // PROFILE PAGE
-  // =========================================
-
-  if (
-    currentPage === "profile"
-  ) {
-    return (
-      <>
-        <Navbar
-          user={currentUser}
-          onProfile={() =>
-            setCurrentPage("profile")
-          }
-          onLogoutRequest={
-            handleLogoutRequest
-          }
-        />
-
-        <Profile
-          user={currentUser}
-          onSave={
-            handleProfileUpdate
-          }
-          onLogout={
-            handleLogoutRequest
-          }
-          onBack={() =>
-            setCurrentPage("dashboard")
-          }
-        />
-
-        {showLogoutConfirmation && (
-          <LogoutConfirmation
-            onConfirm={handleLogout}
-            onCancel={() =>
-              setShowLogoutConfirmation(
-                false
-              )
-            }
-          />
-        )}
-      </>
-    );
-  }
-
-  // =========================================
-  // DASHBOARD
-  // =========================================
-
-  const monthlyBudget = 30000;
-  const budgetPercent = Math.min(
-    Math.round((totalSpent / monthlyBudget) * 100),
-    100
-  );
-  const remainingBudget = Math.max(monthlyBudget - totalSpent, 0);
+  /* ---------------- DASHBOARD ---------------- */
 
   return (
-    <div className="app-container">
+    <div className="app">
       <Navbar
         user={currentUser}
+        onDashboard={() => {
+          setCurrentPage("dashboard");
+
+          window.scrollTo({
+            top: 0,
+            behavior: "smooth",
+          });
+        }}
+        onTransactions={() =>
+          document
+            .getElementById("transactions")
+            ?.scrollIntoView({ behavior: "smooth" })
+        }
+        onAnalytics={() =>
+          document
+            .getElementById("analytics")
+            ?.scrollIntoView({ behavior: "smooth" })
+        }
         onProfile={() => setCurrentPage("profile")}
         onLogoutRequest={handleLogoutRequest}
       />
 
-      <main className="dashboard" id="dashboard">
-        {/* =====================================
-            FINANCIAL HERO BANNER (REAL WORKSPACE IMAGE)
-        ===================================== */}
-        <section className="dashboard-hero-card">
-          <div className="hero-text-side">
-            <div className="hero-pill-badge">
-              <span>✦</span> PERSONAL WEALTH DASHBOARD
-            </div>
+      <main className="dashboard">
+        {/* HERO */}
+
+        <section className="hero">
+          <div>
+            <span className="eyebrow">PERSONAL FINANCE</span>
 
             <h1>
-              Welcome back, <span>{currentUser.name}</span>
+              Understand where
+              <br />
+              your money goes.
             </h1>
 
-            <p className="hero-subtext">
-              Here is your real-time spending pulse for this month. Stay disciplined,
-              track every transaction, and grow your savings.
+            <p>
+              Track your expenses, manage your budget and build
+              smarter financial habits with SpendWise.
             </p>
-
-            <div className="hero-metrics-pill-row">
-              <div className="hero-metric-chip">
-                <small>Total Outflow</small>
-                <strong>₹{totalSpent.toLocaleString()}</strong>
-              </div>
-
-              <div className="hero-metric-chip">
-                <small>Budget Left</small>
-                <strong>₹{remainingBudget.toLocaleString()}</strong>
-              </div>
-
-              <div className="hero-metric-chip">
-                <small>Transactions</small>
-                <strong>{transactionCount} logged</strong>
-              </div>
-            </div>
-
-            <div className="hero-cta-row">
-              <button
-                className="add-expense-button hero-cta"
-                onClick={() => {
-                  setShowForm(!showForm);
-                  setError("");
-                }}
-              >
-                <span>{showForm ? "✕" : "+"}</span>
-                {showForm ? "Close Form" : "Add New Expense"}
-              </button>
-
-              <a href="#analytics" className="hero-secondary-btn">
-                <span>📊</span> View Breakdown
-              </a>
-            </div>
           </div>
 
-          <div className="hero-image-side">
-            <div className="hero-image-frame">
-              <img
-                src="/images/dashboard-banner.jpg"
-                alt="Financial planning workspace with charts and notebook"
-                className="hero-dashboard-img"
-              />
-              <div className="hero-floating-glass-card">
-                <div className="glass-icon">₹</div>
-                <div>
-                  <small>Smart Budget Status</small>
-                  <strong>{budgetPercent}% of monthly limit</strong>
-                </div>
-              </div>
-            </div>
-          </div>
+          <button
+            className="primary-button"
+            onClick={openExpenseDrawer}
+          >
+            + Add Expense
+          </button>
         </section>
 
-        {/* =====================================
-            MONTHLY BUDGET PROGRESS BAR
-        ===================================== */}
-        <section className="budget-progress-section">
-          <div className="budget-progress-header">
-            <div>
-              <h3>Monthly Spending Target</h3>
-              <p>Budget: ₹{monthlyBudget.toLocaleString()} / month</p>
-            </div>
-            <div className="budget-status-pill">
-              {budgetPercent < 70 ? (
-                <span className="status-good">✓ On Track ({budgetPercent}%)</span>
-              ) : budgetPercent < 90 ? (
-                <span className="status-warning">⚠️ High Usage ({budgetPercent}%)</span>
-              ) : (
-                <span className="status-danger">🚨 Budget Alert ({budgetPercent}%)</span>
-              )}
-            </div>
-          </div>
+        {/* SUMMARY */}
 
-          <div className="budget-bar-track">
-            <div
-              className={`budget-bar-fill ${
-                budgetPercent > 90
-                  ? "fill-danger"
-                  : budgetPercent > 70
-                  ? "fill-warning"
-                  : "fill-good"
-              }`}
-              style={{ width: `${budgetPercent}%` }}
-            ></div>
-          </div>
-
-          <div className="budget-bar-labels">
-            <span>₹{totalSpent.toLocaleString()} spent</span>
-            <span>₹{remainingBudget.toLocaleString()} remaining</span>
-          </div>
-        </section>
-
-        {/* =====================================
-            ADD EXPENSE FORM (EXPANDABLE)
-        ===================================== */}
-        {showForm && (
-          <form className="expense-form" onSubmit={handleSubmit}>
-            <div className="form-header-bar">
-              <div>
-                <h2>Add New Expense</h2>
-                <p>Record a new transaction to update your budget immediately.</p>
-              </div>
-              <button
-                type="button"
-                className="close-form-btn"
-                onClick={() => setShowForm(false)}
-              >
-                ✕
-              </button>
-            </div>
-
-            {error && <p className="form-error">{error}</p>}
-
-            <div className="form-grid">
-              <div className="form-group">
-                <label>Description</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Grocery Shopping, Uber, Dinner"
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Category</label>
-                <select
-                  value={category}
-                  onChange={(event) => setCategory(event.target.value)}
-                >
-                  <option value="">Select category</option>
-                  <option value="Food">🍔 Food & Dining</option>
-                  <option value="Transportation">🚗 Transportation</option>
-                  <option value="Shopping">🛍️ Shopping</option>
-                  <option value="Bills">💡 Bills & Utilities</option>
-                  <option value="Entertainment">🎬 Entertainment</option>
-                  <option value="Health">❤️ Health & Fitness</option>
-                  <option value="Other">📦 Other</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Amount (₹)</label>
-                <div className="amount-input-box">
-                  <span className="currency-prefix">₹</span>
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="e.g. 500"
-                    value={amount}
-                    onChange={(event) => setAmount(event.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Date</label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(event) => setDate(event.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="form-footer-actions">
-              <button type="submit" className="save-expense-button">
-                ✓ Save Expense
-              </button>
-              <button
-                type="button"
-                className="cancel-form-button"
-                onClick={() => setShowForm(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* =====================================
-            SUMMARY CARDS (KPI GRID)
-        ===================================== */}
         <section className="summary-grid">
           <SummaryCard
             title="Total Spent"
-            value={`₹${totalSpent.toLocaleString()}`}
-            description="Overall monthly outflow"
-            icon="₹"
+            value={`₹${totalSpent.toLocaleString("en-IN")}`}
+            description="Across all transactions"
+            icon="💰"
+            iconClass="green"
+          />
+
+          <SummaryCard
+            title="Monthly Budget"
+            value={
+              budget
+                ? `₹${budget.toLocaleString("en-IN")}`
+                : "Not Set"
+            }
+            description="Your spending limit"
+            icon="🎯"
+            iconClass="blue"
+          />
+
+          <SummaryCard
+            title="Remaining"
+            value={`₹${remainingBudget.toLocaleString("en-IN")}`}
+            description={
+              budget > 0
+                ? `${Math.round(budgetPercentage)}% used`
+                : "Set a budget to track"
+            }
+            icon="📊"
+            iconClass="purple"
           />
 
           <SummaryCard
             title="Transactions"
-            value={transactionCount}
-            description="Total logged entries"
-            icon="▤"
-          />
-
-          <SummaryCard
-            title="Average Expense"
-            value={`₹${Math.round(averageExpense).toLocaleString()}`}
-            description="Per transaction"
-            icon="◈"
-          />
-
-          <SummaryCard
-            title="Highest Expense"
-            value={`₹${highestExpense.toLocaleString()}`}
-            description="Single biggest expense"
-            icon="↑"
+            value={expenses.length}
+            description="Recorded expenses"
+            icon="🧾"
+            iconClass="orange"
           />
         </section>
 
-        {/* =====================================
-            SEARCH & CATEGORY FILTER BAR
-        ===================================== */}
-        <section className="expense-controls">
-          <div className="search-box-wrapper">
-            <span className="search-box-icon">🔍</span>
-            <input
-              type="text"
-              placeholder="Search expenses by description..."
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              className="search-input"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                className="clear-search-btn"
-                onClick={() => setSearchTerm("")}
-              >
-                ✕
-              </button>
-            )}
+        {/* BUDGET */}
+
+        <section className="budget-card">
+          <div>
+            <span className="eyebrow">MONTHLY BUDGET</span>
+
+            <h2>
+              {budget
+                ? `₹${totalSpent.toLocaleString(
+                  "en-IN"
+                )} of ₹${budget.toLocaleString("en-IN")}`
+                : "Set your monthly budget"}
+            </h2>
+
+            <p>
+              {budget
+                ? `${Math.round(
+                  budgetPercentage
+                )}% of your budget has been used.`
+                : "Choose a budget that matches your spending preferences."}
+            </p>
           </div>
 
-          <select
-            value={selectedCategory}
-            onChange={(event) => setSelectedCategory(event.target.value)}
-            className="category-filter"
+          <button
+            className="secondary-button"
+            onClick={() => {
+              setBudgetInput(budget ? String(budget) : "");
+              setShowBudgetModal(true);
+            }}
           >
-            <option value="All">All Categories</option>
-            <option value="Food">Food & Dining</option>
-            <option value="Transportation">Transportation</option>
-            <option value="Shopping">Shopping</option>
-            <option value="Bills">Bills & Utilities</option>
-            <option value="Entertainment">Entertainment</option>
-            <option value="Health">Health & Fitness</option>
-            <option value="Other">Other</option>
-          </select>
-        </section>
+            {budget ? "Edit Budget" : "Set Budget"}
+          </button>
 
-        {/* =====================================
-            TRANSACTIONS LIST
-        ===================================== */}
-        <ExpenseList
-          expenses={filteredExpenses}
-          onDelete={handleDeleteExpense}
-          onUpdate={handleUpdateExpense}
-        />
-
-        {/* =====================================
-            DUAL SPOTLIGHT: HIGHEST CATEGORY & REAL SAVINGS GOAL IMAGE
-        ===================================== */}
-        <section className="insights-dual-grid">
-          {/* Card 1: Highest Spending Category */}
-          <div className="highest-category-card">
-            <div className="highest-card-top">
-              <span className="insight-badge">SPENDING SPOTLIGHT</span>
-              <p className="insight-label">Top Outflow Category</p>
-              <h2>{highestCategoryName}</h2>
-              <p className="insight-description">
-                You spent the most on <strong>{highestCategoryName}</strong> (₹
-                {highestCategoryAmount.toLocaleString()}).
-              </p>
-            </div>
-
-            <div className="highest-category-amount">
-              ₹{highestCategoryAmount.toLocaleString()}
-            </div>
-
-            <div className="category-tip-box">
-              <span>💡</span>
-              <small>
-                {highestCategoryName === "Food"
-                  ? "Tip: Preparing home-cooked meals 2-3 times a week can trim this by up to 25%."
-                  : highestCategoryName === "Transportation"
-                  ? "Tip: Look into monthly metro passes or ride-sharing to reduce commute costs."
-                  : highestCategoryName === "Shopping"
-                  ? "Tip: Use the 24-hour rule before buying non-essentials to prevent impulse buys."
-                  : "Tip: Regular reviews help you allocate more funds into compounding savings."}
-              </small>
-            </div>
-          </div>
-
-          {/* Card 2: Smart Wealth & Savings Goal (Real 3D Frosted Glass Piggy Bank Image) */}
-          <div className="savings-goal-card">
-            <div className="savings-goal-content">
-              <span className="goal-badge">✦ WEALTH GOAL</span>
-              <h3>Emergency Fund Target</h3>
-              <p>
-                Allocate at least 20% of your earnings into an emergency reserve
-                covering 3–6 months of essential bills.
-              </p>
-
-              <div className="goal-stats-row">
-                <div>
-                  <small>Target Fund</small>
-                  <strong>₹50,000</strong>
-                </div>
-                <div>
-                  <small>Saved So Far</small>
-                  <strong className="text-emerald">₹35,000</strong>
-                </div>
-                <div>
-                  <small>Progress</small>
-                  <strong className="text-indigo">70%</strong>
-                </div>
-              </div>
-
-              <div className="savings-progress-bar">
-                <div className="savings-progress-fill" style={{ width: "70%" }}></div>
-              </div>
-            </div>
-
-            <div className="savings-goal-image-wrapper">
-              <img
-                src="/images/savings-goal.jpg"
-                alt="3D Glowing Glass Piggy Bank and Financial Growth"
-                className="savings-goal-img"
+          {budget > 0 && (
+            <div className="budget-progress">
+              <div
+                style={{ width: `${budgetPercentage}%` }}
               />
             </div>
+          )}
+        </section>
+
+        {/* INSIGHT */}
+
+        <section className="insight-card">
+          <div className="insight-icon">✦</div>
+
+          <div>
+            <span className="eyebrow">SMART INSIGHT</span>
+            <h3>What your spending tells you</h3>
+            <p>{getInsight()}</p>
           </div>
         </section>
 
-        {/* =====================================
-            CATEGORY ANALYTICS
-        ===================================== */}
-        <CategoryAnalytics categoryTotals={categoryTotals} />
+        {/* TRANSACTIONS */}
 
-        {/* =====================================
-            SMART FINANCIAL HABITS FEATURE STRIP
-        ===================================== */}
-        <section className="finance-habits-banner">
-          <div className="habits-header">
-            <span className="section-eyebrow">FINANCIAL FREEDOM</span>
-            <h2>Proven Principles for Smarter Spending</h2>
-            <p>Simple money rules followed by successful budgeters.</p>
+        <section className="section-block" id="transactions">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">TRANSACTIONS</span>
+              <h2>Your Expenses</h2>
+              <p>Search, filter and manage your spending.</p>
+            </div>
+
+            <button
+              className="primary-button small"
+              onClick={openExpenseDrawer}
+            >
+              + Add Expense
+            </button>
           </div>
 
-          <div className="habits-grid">
-            <div className="habit-card">
-              <div className="habit-icon">📊</div>
-              <h4>50 / 30 / 20 Rule</h4>
+          <div className="controls">
+            <input
+              type="text"
+              placeholder="Search expenses..."
+              value={search}
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
+            />
+
+            <select
+              value={categoryFilter}
+              onChange={(event) =>
+                setCategoryFilter(event.target.value)
+              }
+            >
+              <option value="All">All Categories</option>
+
+              {CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {CATEGORY_ICONS[category]} {category}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={sortBy}
+              onChange={(event) =>
+                setSortBy(event.target.value)
+              }
+            >
+              <option value="latest">Latest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="highest">Highest Amount</option>
+              <option value="lowest">Lowest Amount</option>
+            </select>
+          </div>
+
+          <ExpenseList
+            expenses={filteredExpenses}
+            onDelete={deleteExpense}
+            onUpdate={updateExpense}
+          />
+        </section>
+
+        {/* ANALYTICS */}
+
+        <CategoryAnalytics categoryTotals={categoryTotals} />
+
+        {/* HABITS */}
+
+        <section className="habits">
+          <div>
+            <span className="eyebrow">FINANCIAL HABITS</span>
+            <h2>Small changes create better money habits.</h2>
+          </div>
+
+          <div className="habit-grid">
+            <div>
+              <span>01</span>
+              <h3>Track consistently</h3>
               <p>
-                Allocate 50% for Needs (rent, bills), 30% for Wants (dining, hobbies),
-                and 20% into Savings & Investments.
+                Record expenses as soon as they happen so
+                your dashboard stays accurate.
               </p>
             </div>
 
-            <div className="habit-card">
-              <div className="habit-icon">🛡️</div>
-              <h4>Zero-Based Budget</h4>
+            <div>
+              <span>02</span>
+              <h3>Review categories</h3>
               <p>
-                Give every single rupee a job before the month starts so unassigned
-                cash doesn't get spent unconsciously.
+                Check which areas consume most of your
+                monthly spending.
               </p>
             </div>
 
-            <div className="habit-card">
-              <div className="habit-icon">⚡</div>
-              <h4>The 24-Hour Buffer</h4>
+            <div>
+              <span>03</span>
+              <h3>Set realistic limits</h3>
               <p>
-                Hold off on impulsive online shopping for 24 hours. Most unnecessary
-                urges fade after a day.
+                Use your spending history to create a
+                practical monthly budget.
               </p>
             </div>
           </div>
         </section>
       </main>
 
-      {showLogoutConfirmation && (
-        <LogoutConfirmation
-          onConfirm={handleLogout}
-          onCancel={() => setShowLogoutConfirmation(false)}
-        />
+      {/* EXPENSE DRAWER */}
+
+      {showExpenseDrawer && (
+        <div
+          className="overlay"
+          onClick={closeExpenseDrawer}
+        >
+          <aside
+            className="drawer"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="drawer-header">
+              <div>
+                <span className="eyebrow">NEW TRANSACTION</span>
+                <h2>Add Expense</h2>
+              </div>
+
+              <button
+                className="close-button"
+                onClick={closeExpenseDrawer}
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={addExpense}>
+              <label>Description</label>
+              <input
+                name="description"
+                value={expenseForm.description}
+                onChange={handleExpenseChange}
+                placeholder="e.g. Lunch with friends"
+              />
+
+              <label>Category</label>
+              <select
+                name="category"
+                value={expenseForm.category}
+                onChange={handleExpenseChange}
+              >
+                {CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {CATEGORY_ICONS[category]} {category}
+                  </option>
+                ))}
+              </select>
+
+              <label>Amount</label>
+              <input
+                name="amount"
+                type="number"
+                min="1"
+                value={expenseForm.amount}
+                onChange={handleExpenseChange}
+                placeholder="₹0"
+              />
+
+              <label>Date</label>
+              <input
+                name="date"
+                type="date"
+                value={expenseForm.date}
+                onChange={handleExpenseChange}
+              />
+
+              <button className="primary-button full">
+                Save Expense
+              </button>
+            </form>
+          </aside>
+        </div>
       )}
-    </div>
-  );
-}
 
-// =========================================
-// LOGOUT CONFIRMATION
-// =========================================
+      {/* BUDGET MODAL */}
 
-function LogoutConfirmation({
-  onConfirm,
-  onCancel,
-}) {
-  return (
-    <div className="modal-overlay">
-
-      <div className="logout-modal">
-
-        <div className="logout-modal-icon">
-          ↪
-        </div>
-
-        <h2>
-          Logout from SpendWise?
-        </h2>
-
-        <p>
-          Are you sure you want to log
-          out of your account?
-        </p>
-
-        <div className="logout-modal-actions">
-
-          <button
-            className="cancel-logout-button"
-            onClick={onCancel}
+      {showBudgetModal && (
+        <div
+          className="overlay"
+          onClick={() => setShowBudgetModal(false)}
+        >
+          <div
+            className="modal"
+            onClick={(event) => event.stopPropagation()}
           >
-            Cancel
-          </button>
+            <button
+              className="close-button"
+              onClick={() => setShowBudgetModal(false)}
+            >
+              ×
+            </button>
 
-          <button
-            className="confirm-logout-button"
-            onClick={onConfirm}
-          >
-            Yes, Logout
-          </button>
+            <span className="eyebrow">MONTHLY PLANNING</span>
 
+            <h2>Set your budget</h2>
+
+            <p>
+              Choose the maximum amount you want to spend
+              this month.
+            </p>
+
+            <form onSubmit={saveBudget}>
+              <input
+                type="number"
+                min="1"
+                value={budgetInput}
+                onChange={(event) =>
+                  setBudgetInput(event.target.value)
+                }
+                placeholder="Enter amount"
+                autoFocus
+              />
+
+              <button className="primary-button full">
+                Save Budget
+              </button>
+            </form>
+          </div>
         </div>
+      )}
 
-      </div>
+      {/* LOGOUT MODAL */}
 
+      {showLogoutModal && (
+        <div
+          className="overlay"
+          onClick={() => setShowLogoutModal(false)}
+        >
+          <div
+            className="modal logout-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="logout-icon">↗</div>
+
+            <h2>Logout from SpendWise?</h2>
+
+            <p>
+              Your saved expenses will remain on this
+              device.
+            </p>
+
+            <div className="modal-actions">
+              <button
+                className="secondary-button"
+                onClick={() =>
+                  setShowLogoutModal(false)
+                }
+              >
+                Cancel
+              </button>
+
+              <button
+                className="danger-button"
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST */}
+
+      {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }
